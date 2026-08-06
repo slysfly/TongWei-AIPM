@@ -1,0 +1,733 @@
+# 通维 AI-PM 管理员运维手册
+
+> 适用对象：系统管理员 / 运维工程师 / 部署负责人
+> 配套文档：《通维 AI-PM 操作手册》（面向最终用户）
+> 版本：v0.1 ｜ 编写日期：2026-07-13
+> 本手册所有命令、路径、参数均基于仓库实际代码核对，可直接照做。
+
+---
+
+## 第 1 章 手册说明
+
+本手册面向「部署、配置、备份、监控、排障」等运维场景，不涉及业务操作。业务操作请参考《操作手册》。
+
+### 1.1 阅读导航
+
+| 你的目标 | 跳转 |
+|---------|------|
+| 第一次上生产 | 第 3 章部署 → 第 5 章配置 → 第 6 章数据库 |
+| 做日常备份 | 第 6.2 节（SQLite）/ 第 6.3 节（PostgreSQL） |
+| 排查接口报错 | 第 7 章日志与监控 |
+| 改密钥 / 接 HTTPS | 第 8 章安全运维 |
+| 服务起不来 | 第 13 章排错 |
+
+### 1.2 两套口令概念（重要）
+
+- **登录口令（用户密码）**：bcrypt 哈希存储，12 轮加盐，无法反向。
+- **`SECRET_KEY` / `FIELD_ENCRYPTION_KEY`**：系统级密钥，用于签发 JWT 与字段级 AES 加密。二者丢失 = 无法登录 + 历史加密字段无法解密，必须妥善备份。
+
+---
+
+## 第 2 章 系统架构与技术栈
+
+### 2.1 组件拓扑
+
+```
+浏览器 ──HTTP/HTTPS──> [后端 FastAPI :8000]
+                        │
+                        ├── API 路由 (/api/v1/*)        56 个路由模块 / ~400 个端点
+                        ├── 前端静态托管 (/, /assets)    SPA (React)
+                        ├── 数据库 (SQLite 或 PostgreSQL)
+                        ├── Redis (缓存 / 队列 / 调度)   memory 模式可省
+                        └── 后台能力
+                              ├── 定时任务调度器 (APScheduler)
+                              ├── 队列 Worker
+                              └── 重复任务处理器 (每 60s 轮询)
+```
+
+### 2.2 技术栈
+
+| 层 | 选型 |
+|----|------|
+| 后端 | Python 3.11 + FastAPI + SQLAlchemy 2.0（async）+ Pydantic v2 |
+| 前端 | React 18 + TypeScript + Vite + Ant Design 5 + React Context 状态管理（React Query 规划中） + @dnd-kit 拖拽 + tiptap 富文本 |
+| Web 服务 | Uvicorn（由 `serve.py` 拉起，host=0.0.0.0, port=8000） |
+| 数据库 | SQLite（默认零配置）/ PostgreSQL 15（生产推荐） |
+| 缓存/队列 | Redis 7（生产）/ 内存模式（开发） |
+| 认证 | JWT（HS256）+ bcrypt 密码哈希 + RBAC |
+| 加密 | AES-256-GCM 字段级加密（合规字段） |
+| 迁移 | Alembic（生产开启 `DB_MIGRATE=1`） |
+| AI | OpenAI/DeepSeek/Anthropic/百度文心/阿里通义千问/腾讯混元/智谱GLM/Moonshot Kimi/硅基流动/MiniMax(默认)/自定义（OpenAI 兼容），11 家 |
+
+### 2.3 数据规模参考
+
+- 数据模型 **72 张表**（用户、项目、任务、WBS、风险、预算、合规、审批、集成、知识库等）。
+- 首次启动会自动：①建表（Alembic 或 create_all）②建初始管理员 ③初始化系统默认大模型（MiniMax M2.7，内置种子 Key）。
+
+---
+
+## 第 3 章 部署模式
+
+### 3.1 三种部署方式对比
+
+| 方式 | 适用 | 命令 | 数据库 |
+|------|------|------|--------|
+| 一键启动（.bat/.ps1） | 本地/演示/快速试用 | 双击 `启动.bat` | SQLite `pms.db` |
+| 源码部署 | 自托管/内网 | 见 3.3 | 可配 PG |
+| Docker Compose | 生产服务器 | `docker compose up -d --build` | 内置 PG+Redis |
+
+### 3.2 方式一：一键启动（Windows 最省心）
+
+1. 进入 `AI-PMv0.1/` 目录。
+2. 双击 `启动.bat`（或右键 `启动.ps1` → 用 PowerShell 运行）。
+3. 首次运行自动：建虚拟环境 `backend/venv` → 装依赖（约 2–5 分钟）→ 启动。
+4. 访问 `http://localhost:8000`，API 文档 `http://localhost:8000/docs`。
+
+> 启动脚本逻辑：若未设置 `DATABASE_URL` 且 `.env` 中无 `DATABASE_URL`，则默认 `sqlite+aiosqlite:///./pms.db`。因此一键启动的实际数据库文件为 **`backend/pms.db`**。
+
+### 3.3 方式二：源码部署（Linux 示例）
+
+```bash
+# 后端
+cd AI-PMv0.1/backend
+python3.11 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp ../.env.example .env          # 编辑 .env（见第 5 章）
+alembic upgrade head             # 生产：执行迁移
+python serve.py                  # 同时托管 API 与前端
+
+# 前端（可选；不构建也能跑，后端自带预构建 frontend/）
+cd ../frontend
+npm install && npm run build     # 产物 frontend/dist，serve.py 优先使用
+```
+
+### 3.4 方式三：Docker Compose（生产推荐）
+
+```bash
+cd AI-PMv0.1
+cp .env.example .env             # 至少改 SECRET_KEY / INITIAL_ADMIN_PASSWORD / 库密码
+docker compose up -d --build
+```
+
+启动后：
+- 访问 `http://<服务器IP>:8000`（前端与 API 同源）
+- API 文档 `http://<服务器IP>:8000/docs`
+- 自动建表 + 初始管理员；PG 数据卷 `pgdata`、上传卷 `uploads` 持久化
+
+> ⚠️ `docker-compose.yml` 中 `SECRET_KEY` 为占位值（`997e1fbc...`）。**生产务必通过环境变量覆盖为强随机值**，否则后端在 `ENVIRONMENT=production` 下会因弱密钥拒绝启动（见 8.2）。
+
+---
+
+## 第 4 章 目录结构与关键文件
+
+```
+AI-PMv0.1/
+├── 启动.bat / 启动.ps1      # 一键启动脚本
+├── 安装说明.txt             # 用户侧安装指引
+├── DEPLOY.md                # 部署与运维指南（精简版）
+├── docker-compose.yml       # 生产编排（PG + Redis + backend）
+├── Dockerfile               # 多阶段构建（前端 build + 后端运行）
+├── .env.example             # 环境变量模板（顶层）
+├── backend/
+│   ├── serve.py             # 【生产入口】托管 API + 前端，含启动安全校验
+│   ├── main.py              # FastAPI 应用（备用入口）
+│   ├── requirements.txt     # Python 依赖
+│   ├── .env                 # 【实际生效】环境变量（不存在时自动从 .env.example 复制）
+│   ├── .env.example         # 环境变量模板
+│   ├── alembic.ini          # Alembic 配置
+│   ├── alembic/versions/    # 迁移脚本（纳入版本控制）
+│   ├── app/
+│   │   ├── config.py        # 配置中心（读取 .env）
+│   │   ├── db/session.py    # 数据库引擎与会话
+│   │   ├── core/
+│   │   │   ├── logging.py   # 日志配置（文件 + 控制台 + 错误日志）
+│   │   │   ├── encryption.py# 字段级 AES-256-GCM 加密
+│   │   │   ├── security.py  # JWT / bcrypt
+│   │   │   ├── migrate.py   # 迁移入口（Alembic 优先，create_all 兜底）
+│   │   │   ├── init_admin.py# 初始管理员 + 系统默认大模型
+│   │   │   └── monitoring.py# 内存指标收集
+│   │   ├── api/v1/monitoring.py # 监控/健康 API
+│   │   ├── models/          # 72 张表 ORM 定义
+│   │   └── services/        # AI / RAG / Agent / 调度 / 队列
+│   ├── logs/                # 【日志目录】app.log / error.log（首次运行自动创建）
+│   ├── uploads/             # 【上传文件】附件、知识库文档
+│   ├── pms.db / tw_ai_pms.db# 【SQLite 数据库文件】
+│   └── venv/                # Python 虚拟环境
+└── frontend/                # 前端源码（dist 为构建产物）
+```
+
+**运维最关注的三类文件**
+
+| 类别 | 路径 | 说明 |
+|------|------|------|
+| 配置 | `backend/.env` | 所有可调参数 |
+| 数据 | `backend/*.db` 或 PostgreSQL 实例 | 业务数据 |
+| 日志 | `backend/logs/*.log` | 运行日志 |
+| 附件 | `backend/uploads/` | 用户上传文件 |
+
+---
+
+## 第 5 章 配置管理（.env 全量参数）
+
+### 5.1 配置加载规则
+
+- 配置中心：`app/config.py`（Pydantic `BaseSettings`，`env_file=".env"`，大小写敏感）。
+- **`.env` 不存在时**，启动时自动从 `.env.example` 复制并告警（见 `config._check_env_file`）。
+- 命令行环境变量优先级高于 `.env`。
+- 改完 `.env **必须重启服务** 才能生效。
+
+### 5.2 生产环境 .env 样例（可直接套用）
+
+```env
+# ===== 基础 =====
+ENVIRONMENT=production
+VERSION=1.0.0
+APP_NAME=通维AI项目管理系统
+
+# ===== 安全（必改）=====
+SECRET_KEY=请替换为 openssl rand -hex 32 的输出
+# 可选：独立的字段加密密钥（缺省时由 SECRET_KEY 派生，建议显式设置并备份）
+# FIELD_ENCRYPTION_KEY=请替换为 32 字节 base64（generate_field_encryption_key 生成）
+
+# ===== 数据库（生产用 PostgreSQL）=====
+DATABASE_URL=postgresql+asyncpg://aipm:强密码@localhost:5432/aipm
+DB_MIGRATE=1
+
+# ===== Redis =====
+REDIS_URL=redis://localhost:6379/0
+
+# ===== 初始管理员（仅当无超级用户时创建一次）=====
+INITIAL_ADMIN_USERNAME=admin
+INITIAL_ADMIN_PASSWORD=请用强密码
+INITIAL_ADMIN_EMAIL=admin@your-company.com
+INITIAL_ADMIN_FULL_NAME=系统管理员
+
+# ===== AI（至少配一个）=====
+DEEPSEEK_API_KEY=sk-xxxx
+# OPENAI_API_KEY=sk-xxxx
+LLM_MODEL=deepseek-chat
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=2000
+
+# ===== 邮件（未配则优雅失败，不影响其他功能）=====
+SMTP_HOST=smtp.your-company.com
+SMTP_PORT=587
+SMTP_USER=notice@your-company.com
+SMTP_PASSWORD=邮件密码
+EMAILS_FROM=notice@your-company.com
+
+# ===== 日志 / CORS / 上传 =====
+LOG_LEVEL=INFO
+CORS_ORIGINS=https://pm.your-company.com
+UPLOAD_DIR=./uploads
+MAX_UPLOAD_SIZE=104857600
+```
+
+### 5.3 参数速查表
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `ENVIRONMENT` | `development` | 生产设 `production`（触发弱密钥校验） |
+| `SECRET_KEY` | 占位串 | **生产必改**；弱密钥会被 `serve.py` 拒绝启动 |
+| `FIELD_ENCRYPTION_KEY` | 无（派生） | 32 字节 base64；用于 AES 字段加密 |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | 30 | JWT 访问令牌有效期 |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | 7 | 刷新令牌有效期 |
+| `DATABASE_URL` | PG 占位 | `sqlite+aiosqlite:///./pms.db` 或 `postgresql+asyncpg://...` |
+| `DB_MIGRATE` | `False` | `True` 用 Alembic；`False` 用 create_all 兜底 |
+| `DATABASE_POOL_SIZE` | 20 | PG 连接池大小 |
+| `DATABASE_MAX_OVERFLOW` | 10 | PG 连接池溢出 |
+| `REDIS_URL` | `redis://localhost:6379/0` | `memory://` 为开发模式 |
+| `INITIAL_ADMIN_*` | admin/admin123 | 初始管理员，仅创建一次 |
+| `*_API_KEY` | 空 | 11 家 LLM，至少配一个 |
+| `SYSTEM_LLM_SEED_API_KEY` | 内置 MiniMax Key | 首次启动系统默认大模型种子 |
+| `SMTP_*` | gmail 占位 | 邮件通知；未配不影响主流程 |
+| `ZAPIER_WEBHOOK_SECRET` | 空 | 配置后才校验 Zapier 签名 |
+| `FEISHU_APP_ID/SECRET` | 空 | 飞书集成（OAuth 与多维表格同步） |
+| `DINGTALK_APP_KEY/SECRET` | 空 | 钉钉集成（审批同步需应用级凭证） |
+| `WECOM_CORP_ID/CORP_SECRET/AGENT_ID` | 空 | 企业微信集成（通讯录/应用消息需企业级凭证） |
+| `UPLOAD_DIR` | `./uploads` | 附件目录 |
+| `MAX_UPLOAD_SIZE` | 100MB | 单文件上限 |
+| `LOG_LEVEL` | `INFO` | DEBUG/INFO/WARNING/ERROR |
+| `CORS_ORIGINS` | localhost 列表 | 逗号分隔的前端来源 |
+| `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE` | 20 / 100 | 分页 |
+| `CACHE_TTL` / `CACHE_ENABLED` | 300 / true | 缓存 |
+
+> **集成数据同步已落地**：飞书/钉钉/企微/GitHub/Slack/Zoom/Google 在配置真实凭证后，已支持**真实 API 调用 + 数据落库**（如 GitHub Issue→任务、钉钉审批→任务、飞书多维表格→任务）。未配置真实凭证时仍优雅报错，绝不返回假数据。启用飞书多维表格/钉钉审批/企微通讯录需在 `.env` 配置对应的应用级凭证（见上表）。
+>
+> **首次启动演示数据**：若系统中无任何项目，启动时会自动写入一个「通维 AI-PM 示例项目」及若干任务（见 `backend/app/core/seed.py`），便于直观体验；可在界面中删除后自行创建。生产环境如需空白启动，可忽略该演示数据或删除示例项目。
+
+### 5.4 配置自检
+
+启动时 `config.validate_config()` 会输出告警：
+- `SECRET_KEY` 为默认值 → 提示生产需修改。
+- 未配置任何 AI Key → 提示 AI 功能不可用（系统仍可运行）。
+- `DATABASE_URL` 为空 → 报错（实际默认已指向 PG 占位串，不会空）。
+- 百度缺 `BAIDU_SECRET_KEY`、OpenAI 兼容缺 `BASE_URL` → 提示。
+
+---
+
+## 第 6 章 数据库管理
+
+### 6.1 确认当前使用的数据库
+
+```powershell
+# 查看 .env 中的 DATABASE_URL（最权威）
+Get-Content backend\.env | Select-String DATABASE_URL
+```
+
+- 含 `sqlite` → SQLite 文件模式，文件名取自 URL 路径（如 `./pms.db` 或 `./tw_ai_pms.db`）。
+- 含 `postgresql` → PostgreSQL，按 6.3 备份。
+
+> 仓库现状：一键启动默认用 `backend/pms.db`（含数据）；若 `.env` 显式写了 `tw_ai_pms.db`，则以该文件为准。备份前请用上面命令确认实际文件名，且**优先备份体积较大、最近修改的那个**。
+
+### 6.2 SQLite 备份与恢复
+
+SQLite 是单文件数据库，备份 = 复制文件。**务必先停止服务**，避免写一半导致损坏。
+
+**Windows（PowerShell）**
+
+```powershell
+cd AI-PMv0.1/backend
+# 1) 停止服务（Ctrl+C 或停止进程）
+# 2) 备份（含 -wal / -shm 若存在）
+$ts = Get-Date -Format 'yyyyMMdd_HHmmss'
+Copy-Item pms.db "backup\pms_$ts.db"
+if (Test-Path pms.db-wal) { Copy-Item pms.db-wal "backup\pms_$ts.db-wal" }
+if (Test-Path pms.db-shm) { Copy-Item pms.db-shm "backup\pms_$ts.db-shm" }
+
+# 3) 在线热备（推荐，无需停服）：使用 sqlite3 的 .backup
+sqlite3 pms.db ".backup 'backup\pms_hot.db'"
+```
+
+**Linux**
+
+```bash
+cd AI-PMv0.1/backend
+ts=$(date +%Y%m%d_%H%M%S)
+sqlite3 pms.db ".backup 'backup/pms_$ts.db'"
+# 或简单复制（停服时）
+cp pms.db backup/pms_$ts.db
+```
+
+**恢复**
+
+```powershell
+# 停服后，用备份覆盖
+Copy-Item backup\pms_20260713_020000.db pms.db -Force
+# 重启服务
+```
+
+**自动化备份脚本（建议加入计划任务）**
+
+```powershell
+# backup_sqlite.ps1
+$ErrorActionPreference = "Stop"
+$base = "C:\AI-PMv0.1\backend"
+$ts = Get-Date -Format 'yyyyMMdd_HHmmss'
+$db = Join-Path $base "pms.db"
+$destDir = Join-Path $base "backup"; New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+$dest = Join-Path $destDir "pms_$ts.db"
+& sqlite3 $db ".backup '$dest'"
+# 仅保留最近 30 份
+Get-ChildItem $destDir -Filter pms_*.db | Sort-Object Name -Descending | Select-Object -Skip 30 | Remove-Item -Force
+Write-Host "SQLite 备份完成: $dest"
+```
+
+> 用 Windows 任务计划程序每天 02:00 调用 `powershell -File backup_sqlite.ps1`。
+
+### 6.3 PostgreSQL 备份与恢复
+
+**备份（pg_dump）**
+
+```bash
+# 从 DATABASE_URL 解析出的库：用户/库名/主机
+pg_dump -h localhost -U aipm -d aipm -F c -f backup/aipm_$(date +%Y%m%d).dump
+# 或明文 SQL
+pg_dump -h localhost -U aipm -d aipm > backup/aipm_$(date +%Y%m%d).sql
+```
+
+Docker 容器内：
+
+```bash
+docker compose exec db pg_dump -U aipm aipm -F c -f /tmp/aipm.dump
+docker compose cp db:/tmp/aipm.dump ./backup/aipm.dump
+```
+
+**恢复**
+
+```bash
+# 自定义格式
+pg_restore -h localhost -U aipm -d aipm --clean --if-exists backup/aipm.dump
+# 或 SQL 文本
+psql -h localhost -U aipm -d aipm -f backup/aipm.sql
+```
+
+**定期备份（crontab 示例）**
+
+```cron
+0 2 * * * /usr/bin/pg_dump -h localhost -U aipm -d aipm -F c -f /var/backups/aipm_$(date +\%Y\%m\%d).dump
+```
+
+### 6.4 附件备份
+
+`backend/uploads/` 存放用户上传文档、知识库文件。备份数据库时**务必一并备份此目录**：
+
+```powershell
+robocopy backend\uploads backup\uploads_$ts /E /R:1 /W:1
+```
+
+### 6.5 数据库迁移（Alembic）
+
+生产建议开启 `DB_MIGRATE=1`，由 Alembic 管理 schema 演进。
+
+```bash
+cd backend
+alembic revision --autogenerate -m "变更说明"   # 模型变更后生成迁移
+alembic upgrade head                            # 升级到最新
+alembic history                                 # 查看历史
+alembic downgrade -1                            # 回滚一个版本
+```
+
+迁移脚本位于 `backend/alembic/versions/`，需纳入版本控制。
+若 `DB_MIGRATE=0`（开发默认），应用启动时用 `create_all` 兜底建表。
+
+### 6.6 切换到 PostgreSQL（生产换库）
+
+1. 准备 PostgreSQL 15+，创建库与用户：
+   ```sql
+   CREATE USER aipm WITH PASSWORD '强密码';
+   CREATE DATABASE aipm OWNER aipm;
+   ```
+2. 修改 `backend/.env`：
+   ```env
+   DATABASE_URL=postgresql+asyncpg://aipm:强密码@localhost:5432/aipm
+   DB_MIGRATE=1
+   REDIS_URL=redis://localhost:6379/0
+   ```
+3. 迁移旧数据（若从 SQLite 迁移）：先用 6.2 导出，再用 ETL/脚本写入 PG（系统无内置 SQLite→PG 导入器，建议新库直接 `alembic upgrade head` 后重新录入，或用 `pgloader` 工具）。
+4. 重启服务，验证 `/api/v1/monitoring/health` 中 `database.status=healthy`。
+
+---
+
+## 第 7 章 日志与监控
+
+### 7.1 日志位置与格式
+
+日志目录：`backend/logs/`（首次运行自动创建）
+
+| 文件 | 级别 | 说明 | 滚动策略 |
+|------|------|------|----------|
+| `app.log` | `LOG_LEVEL`（默认 INFO） | 全量运行日志 | 10MB / 10 个备份 |
+| `error.log` | ERROR 及以上 | 仅错误 | 10MB / 10 个备份 |
+| 控制台 | 同 `LOG_LEVEL` | 启动可见 | — |
+
+格式：`%(asctime)s - %(name)s - %(levelname)s - %(message)s`
+- SQLAlchemy 引擎日志被压到 WARNING，避免刷屏。
+- uvicorn.access / error 设为 INFO。
+
+### 7.2 调整日志级别
+
+编辑 `backend/.env`：`LOG_LEVEL=DEBUG`（排障时）或 `WARNING`（生产降噪），重启生效。
+
+### 7.3 实时监控 API（无需登录鉴权见 7.4）
+
+所有路径前缀 `/api/v1`：
+
+| 端点 | 作用 |
+|------|------|
+| `GET /monitoring/health` | 整体健康：API / 数据库 / Redis 状态与延迟 |
+| `GET /monitoring/metrics?window=300` | 请求量、QPS、P50/P95/P99 延迟、状态码分布、慢查询数、错误率 |
+| `GET /monitoring/slow-queries?threshold=500&limit=50` | 慢查询列表（>500ms） |
+| `GET /monitoring/errors?limit=50` | 最近错误日志 |
+
+根路径另提供 `GET /health`（轻量探活，供负载均衡/健康检查用）。
+
+**示例**
+
+```bash
+curl http://localhost:8000/api/v1/monitoring/health
+curl http://localhost:8000/health
+```
+
+```json
+{"success":true,"data":{"status":"healthy","services":{"api":{"status":"healthy"},"database":{"status":"healthy","latency_ms":1.2},"redis":{"status":"healthy","latency_ms":0.5}}}}
+```
+
+> ⚠️ 监控 API 默认**无鉴权**，生产务必通过反向代理限制内网访问（见 8.5）。
+
+### 7.4 指标说明（排障用）
+
+- `database.avg_duration_ms` 突增 → 慢 SQL 或连接池耗尽。
+- `errors.error_rate` 升高 → 配合 `error.log` 查根因。
+- `requests.top_paths` 高频 → 命中热点接口，可加缓存。
+
+---
+
+## 第 8 章 安全运维
+
+### 8.1 认证与密码
+
+- 密码哈希：bcrypt（12 轮），不可逆（《操作手册》第 3 章有改密与策略说明）。
+- JWT：HS256，密钥 = `SECRET_KEY`；访问令牌 30 分钟，刷新令牌 7 天。
+- 权限：RBAC，角色在「设置 → 用户/角色」管理。
+
+### 8.2 SECRET_KEY 与弱密钥防护
+
+- `serve.py` 启动安全校验：当 `ENVIRONMENT=production` 且 `SECRET_KEY` 属于弱密钥清单（`your-secret-key-here-change-in-production` / `change-me` / `change-me-in-production`）时，**直接 `sys.exit(1)` 拒绝启动**。
+- 生成强密钥：
+  ```bash
+  openssl rand -hex 32
+  ```
+- 修改后**必须重启**，且旧 JWT 全部失效（用户需重新登录）。
+
+### 8.3 字段级加密（AES-256-GCM）
+
+- 合规/敏感字段（如 LLM Key、集成凭证）在应用层 AES-256-GCM 加密存储。
+- 密钥来源（见 `core/encryption.py`）：
+  1. 优先 `FIELD_ENCRYPTION_KEY`（环境变量，32 字节 base64）。
+  2. 缺省时用 PBKDF2(SHA256, 10 万次) 从 `SECRET_KEY` 派生。
+- ⚠️ **轮换 `SECRET_KEY` 且未单独设置 `FIELD_ENCRYPTION_KEY` 时，历史加密字段将无法解密**。生产务必显式设置并离线备份 `FIELD_ENCRYPTION_KEY`。
+- 生成独立密钥（在 Python 中）：
+  ```python
+  from app.core.encryption import generate_field_encryption_key
+  print(generate_field_encryption_key())
+  ```
+
+### 8.4 初始管理员与口令
+
+- 启动自动检测：若无任何超级用户，按 `INITIAL_ADMIN_*` 创建（仅一次）。
+- 忘记管理员密码：用数据库直接重置，或临时将 `INITIAL_ADMIN_PASSWORD` 改掉后重启（仅当无超级用户时生效；若已存在则忽略）。
+
+```sql
+-- PostgreSQL 重置管理员密码（bcrypt 哈希需用应用生成，建议用脚本）
+-- 推荐：通过后台脚本调用 get_password_hash 后 UPDATE users SET hashed_password=...
+```
+
+> 简化做法：删除该超级用户行后重启，系统会按 `INITIAL_ADMIN_*` 重建（会丢失该账号原资料，谨慎）。
+
+### 8.5 HTTPS 与反向代理（生产必做）
+
+`serve.py` 本身只提供 HTTP。生产用 Nginx/Caddy 终止 TLS 并反代：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name pm.your-company.com;
+    ssl_certificate     /path/fullchain.pem;
+    ssl_certificate_key /path/privkey.pem;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location /docs { allow 10.0.0.0/8; deny all; }   # 限制 API 文档内网
+    location /api/v1/monitoring/ { allow 10.0.0.0/8; deny all; }  # 限制监控接口
+    location / { proxy_pass http://127.0.0.1:8000; }
+}
+```
+
+同时把 `CORS_ORIGINS` 改为 `https://pm.your-company.com`。
+
+### 8.6 生产安全清单（上线前逐项确认）
+
+- [ ] `SECRET_KEY` 为强随机值（非默认值）
+- [ ] 已显式设置并离线备份 `FIELD_ENCRYPTION_KEY`
+- [ ] `ENVIRONMENT=production`
+- [ ] `INITIAL_ADMIN_PASSWORD` 已改为强密码
+- [ ] 配置 HTTPS（Nginx/Caddy 终止 TLS）
+- [ ] 配置 `SMTP_*`（未配则邮件功能优雅失败）
+- [ ] 配置至少一家 LLM API Key（未配 AI 返回 503）
+- [ ] 配置所需集成 OAuth 凭证
+- [ ] PostgreSQL + Redis 使用强密码并限制网络
+- [ ] 监控/文档接口限制内网访问
+- [ ] 已配置数据库 + 附件的定期备份
+
+---
+
+## 第 9 章 用户与权限管理
+
+- **角色（RBAC）**：在「设置 → 用户/角色」页面管理，支持自定义角色与权限点。
+- **创建用户**：管理员在用户管理页新增，初始口令由用户首次登录修改（策略见《操作手册》第 3 章：12 位、90 天有效期、弱密码检测）。
+- **停用/启用**：用户 `is_active` 标志控制能否登录。
+- **超级管理员**：`is_superuser=true`，拥有全量权限；初始账号由 `INITIAL_ADMIN_*` 创建。
+- 审计：合规相关字段加密存储，操作留痕见日志与合规模块。
+
+---
+
+## 第 10 章 服务与进程管理
+
+### 10.1 启动 / 停止
+
+| 场景 | 启动 | 停止 |
+|------|------|------|
+| 一键（Windows） | 双击 `启动.bat` | Ctrl+C |
+| 源码 | `python serve.py` | Ctrl+C |
+| Docker | `docker compose up -d` | `docker compose down` |
+
+### 10.2 修改端口
+
+```bash
+PORT=9000 python serve.py
+# 或 Windows
+set PORT=9000 && python serve.py
+```
+默认 8000，`serve.py` 读取环境变量 `PORT`。
+
+### 10.3 常驻运行（生产）
+
+**Linux systemd 示例** `/etc/systemd/system/aipm.service`：
+
+```ini
+[Unit]
+Description=通维 AI-PM
+After=network.target postgresql.service redis.service
+
+[Service]
+WorkingDirectory=/opt/AI-PMv0.1/backend
+ExecStart=/opt/AI-PMv0.1/backend/venv/bin/python serve.py
+Environment=PORT=8000
+Restart=always
+User=aipm
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+systemctl daemon-reload && systemctl enable --now aipm
+journalctl -u aipm -f        # 查看日志
+```
+
+**Docker** 已在 `docker-compose.yml` 设 `restart: unless-stopped`，进程退出自动拉起。
+
+### 10.4 启动后自检清单
+
+1. 控制台无 `SECRET_KEY` 弱密钥报错（生产）。
+2. 出现「数据库初始化完成」「系统启动成功！」。
+3. 浏览器可打开 `http://<host>:8000`。
+4. `curl http://localhost:8000/health` 返回 `healthy`。
+5. `curl http://localhost:8000/api/v1/monitoring/health` 中 database/redis 健康。
+
+---
+
+## 第 11 章 升级与版本管理
+
+### 11.1 源码升级
+
+```bash
+cd AI-PMv0.1
+git pull            # 或解压新包覆盖
+cd backend && source venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head           # 关键：迁移 schema
+python serve.py
+```
+
+### 11.2 Docker 升级
+
+```bash
+docker compose pull
+docker compose up -d --build
+# 迁移在 serve.py 启动阶段自动执行（DB_MIGRATE=1）
+```
+
+### 11.3 升级前必做
+
+- [ ] 完整备份数据库（6.2/6.3）+ 附件（6.4）
+- [ ] 备份 `backend/.env`（含密钥）
+- [ ] 记录当前版本 `VERSION`
+- [ ] 确认迁移脚本与新代码匹配（先 `alembic upgrade head` 在副本验证）
+
+### 11.4 回滚
+
+- 代码回退到上一版本标签。
+- 若已执行不可逆迁移，需用升级前备份恢复数据库。
+
+---
+
+## 第 12 章 容量与性能
+
+- **连接池**：PostgreSQL `DATABASE_POOL_SIZE=20`，`DATABASE_MAX_OVERFLOW=10`，`pool_pre_ping=True`。高并发可调大。
+- **缓存**：`CACHE_ENABLED=true`，`CACHE_TTL=300` 秒。
+- **Redis**：生产用真实 Redis；开发可用 `memory://`。队列/调度依赖 Redis（`CELERY_BROKER_URL` 等默认指向 Redis 库 1/2）。
+- **后台能力**：调度器（APScheduler）、队列 Worker、重复任务处理器（60s 轮询）随服务启动；启动失败会告警但不阻断主服务。
+- **文件上传**：单文件上限 `MAX_UPLOAD_SIZE`（默认 100MB），扩展名白名单（pdf/doc/docx/xls/xlsx/png/jpg/jpeg/txt/md）。
+
+---
+
+## 第 13 章 故障排查与应急预案
+
+| 现象 | 可能原因 | 处理 |
+|------|---------|------|
+| 生产启动即退出，日志报「弱 SECRET_KEY」 | `SECRET_KEY` 为默认值 | 设强随机 `SECRET_KEY` 后重启（8.2） |
+| 端口 8000 被占用 | 其他进程占用 | `PORT=9000 python serve.py` 或释放端口 |
+| 页面空白 / 404 | 前端产物缺失 | 确认 `backend/frontend/` 或 `frontend/dist/` 存在（DEPLOY 7） |
+| AI 功能 503 | 未配 LLM Key | 配至少一家 `*_API_KEY`（5.3） |
+| 邮件发不出 | SMTP 未配/错误 | 检查 `SMTP_*`；未配仅告警不阻断 |
+| 数据库不健康 | PG 未起/密码错/网络隔离 | 查 `monitoring/health`；核对 `DATABASE_URL` |
+| Redis 不健康 | Redis 未起 | 启 Redis 或临时 `REDIS_URL=memory://`（功能降级） |
+| 加密字段解密失败 | 轮换了 `SECRET_KEY` 且无独立 `FIELD_ENCRYPTION_KEY` | 恢复原 `SECRET_KEY` 或提供原 `FIELD_ENCRYPTION_KEY`（8.3） |
+| 迁移报错 | schema 不一致 | `alembic upgrade head`；或 `DB_MIGRATE=0` 用 create_all 兜底（migrate.py） |
+| 忘记管理员密码 | 无超级用户 | 用 `INITIAL_ADMIN_*` 重建（删原超级用户行后重启）或脚本重置哈希（8.4） |
+| 接口慢 | 慢查询/连接池满 | 查 `monitoring/slow-queries`；调大连接池或加索引 |
+| 上传失败 | 超大小/类型不符 | 核对 `MAX_UPLOAD_SIZE` 与扩展名白名单 |
+
+### 13.1 应急预案：数据库损坏
+
+1. 立即停服。
+2. 用最近备份恢复（6.2/6.3）。
+3. 验证 `/health` 与 `/monitoring/health`。
+4. 若备份也损坏：SQLite 可尝试 `sqlite3 pms.db ".recover"` 抢救；PG 用最近 `.dump` 恢复。
+
+### 13.2 应急联系人信息位
+
+- 配置与密钥备份：离线密码库 / 运维保险箱（**切勿提交进 Git**）。
+- 监控面板：建议将 `/monitoring/metrics` 接入 Prometheus/Grafana（需在反代后暴露）。
+
+---
+
+## 附录 A：常用命令速记
+
+```bash
+# 健康检查
+curl http://localhost:8000/health
+curl http://localhost:8000/api/v1/monitoring/health
+
+# 生成强密钥
+openssl rand -hex 32
+
+# SQLite 热备
+sqlite3 backend/pms.db ".backup 'backup/pms_hot.db'"
+
+# PG 备份
+pg_dump -h localhost -U aipm -d aipm -F c -f backup/aipm.dump
+
+# 迁移
+alembic upgrade head
+
+# 改端口启动
+PORT=9000 python serve.py
+
+# Docker
+docker compose up -d --build
+docker compose down
+```
+
+## 附录 B：关键路径一览
+
+| 用途 | 路径 |
+|------|------|
+| 配置 | `backend/.env` |
+| SQLite 数据 | `backend/pms.db`（或 `.env` 指定的文件） |
+| PG 数据 | PostgreSQL 实例 / Docker 卷 `pgdata` |
+| 日志 | `backend/logs/app.log`、`backend/logs/error.log` |
+| 上传 | `backend/uploads/` |
+| 迁移脚本 | `backend/alembic/versions/` |
+| 启动入口 | `backend/serve.py` |
+| 一键启动 | `启动.bat` / `启动.ps1` |
+
+---
+
+*通维 AI-PM 管理员运维手册 v0.1 ｜ 2026-07-13*
+*配套：《通维 AI-PM 操作手册》（最终用户）*

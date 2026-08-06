@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+dist-ssr/
+dist_bak/
+dist_old/
+build/
+coverage/
+.output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+venv/
+.venv/
+.pytest_cache/
+.mypy_cache/
+
+# Secrets / environment — NEVER commit
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Local data / uploads / temp
+data/
+uploads/
+tmp/
+server_cache/
+qa-shots/
+
+# Backups & archives
+*.zip
+*.tgz
+*.tar.gz
+*.bak
+*.bak.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Vite temp
+vite.config.ts.timestamp-*.mjs
+
+# Test recordings / CI artifacts
+.playwright-cli/

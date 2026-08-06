@@ -1,0 +1,20 @@
+[Unit]
+Description=通维AI项目管理系统 (AI-PM)
+After=network.target
+
+[Service]
+Type=simple
+# 以下路径请改为实际解压目录；推荐用 install.sh 自动生成（路径更精准）
+WorkingDirectory=/opt/AI-PM/backend
+ExecStart=/opt/AI-PM/backend/venv/bin/python /opt/AI-PM/backend/serve.py
+Environment=HOST=0.0.0.0
+Environment=PORT=8000
+Environment=PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=3
+User=root
+StandardOutput=journalctl
+StandardError=journalctl
+
+[Install]
+WantedBy=multi-user.target
