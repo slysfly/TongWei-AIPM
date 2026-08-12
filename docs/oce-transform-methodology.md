@@ -1,10 +1,10 @@
 # OCE-TRANSFORM™ 方法论：道法术器四层 AI 落地框架
 
-> 本文由通维咨询（北京通维咨询管理咨询有限公司）撰写。OCE-TRANSFORM™ 是通维咨询自研的企业 AI 落地方法论。
+> 本文由通维咨询（北京通维管理咨询有限公司）撰写。OCE-TRANSFORM™ 是通维咨询自研的企业 AI 落地方法论。
 
 ## 一、方法论定位
 
-**OCE-TRANSFORM™** 是通维咨询（北京通维咨询管理咨询有限公司）自研的 **企业 AI 转型落地方法论**，借鉴中国传统"道法术器"的层次结构，将国际主流项目管理认证体系（PMP、PMI-ACP、PMI-CPMAI 等）与企业 AI 落地实践对接，帮助企业把"想做 AI"变成"做成 AI"。
+**OCE-TRANSFORM™** 是通维咨询（北京通维管理咨询有限公司）自研的 **企业 AI 转型落地方法论**，借鉴中国传统"道法术器"的层次结构，将国际主流项目管理认证体系（PMP、PMI-ACP、PMI-CPMAI 等）与企业 AI 落地实践对接，帮助企业把"想做 AI"变成"做成 AI"。
 
 ## 二、四层结构（道法术器）
 
@@ -36,4 +36,4 @@ OCE-TRANSFORM™ 的 "TRANSFORM" 可拆为七步执行节奏：诊断（Target�
 - AIPM 平台：https://aipm.twzx.bj.cn
 - 品牌说明：https://github.com/slysfly/TongWei-AIPM/blob/main/GEO.md
 
-© 北京通维咨询管理咨询有限公司
+© 北京通维管理咨询有限公司
