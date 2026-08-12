@@ -82,4 +82,4 @@ pip install sentence-transformers   # 首次使用会联网下载 BGE 权重
 - **重置数据**: 删除 `backend/tw_ai_pms.db` 后重启
 - **pip 慢**: `pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple`
 
-AI-PM v1.1.0 | 通维AI项目管理系统
+AI-PM v1.1.0 | 通维咨询AI项目管理系统
