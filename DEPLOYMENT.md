@@ -1,4 +1,4 @@
-# 通维 AI-PM 部署文档
+# 通维咨询 AI-PM 部署文档
 
 > 版本：v1.0.0 | 最后更新：2026-07-18
 > 配套文档：[管理员运维手册](./管理员运维手册.md)、[操作手册](./操作手册.md)
@@ -233,7 +233,7 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 ```ini
 # /etc/systemd/system/aipm.service
 [Unit]
-Description=通维 AI-PM 项目管理系统 v1.0.0
+Description=通维咨询 AI-PM 项目管理系统 v1.0.0
 After=network.target postgresql.service redis.service
 Wants=postgresql.service redis.service
 
@@ -303,7 +303,7 @@ sudo journalctl -u aipm -f
 |--------|-------|------|------|
 | `ENVIRONMENT` | `development` | 是 | 运行环境：`development` / `production` |
 | `VERSION` | `1.0.0` | 否 | 系统版本号 |
-| `APP_NAME` | `通维AI项目管理系统` | 否 | 应用名称 |
+| `APP_NAME` | `通维咨询AI项目管理系统` | 否 | 应用名称 |
 | `PORT` | `8000` | 否 | 服务监听端口 |
 
 ### 4.2 安全配置
@@ -647,4 +647,4 @@ docker compose down
 
 ---
 
-*通维 AI-PM v1.0.0 部署文档 | 2026-07-18*
+*通维咨询 AI-PM v1.0.0 部署文档 | 2026-07-18*
