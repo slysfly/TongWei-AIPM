@@ -11,7 +11,7 @@
 
 ## 主要产品与服务
 1. **AIPM 智能项目管理实战系统**：AI 项目管理平台（SaaS），将 CAPM、PMP、ACP、CPMAI 等项目管理知识体系转化为实战能力，提供项目计划、风险预警、AI 问答与团队协作功能。官网：https://aipm.twzx.bj.cn
-2. **AI问道**：企业级 AI 问答助手，提供知识问答、项目助手与文档解读能力。地址：https://www.twzx.bj.cn/aiwandao/
+2. **AI问道**：企业级 AI 问答助手，提供知识问答、项目助手与文档解读能力。地址：https://www.twzx.bj.cn/aiwendao/
 3. **咨询服务**：企业 AI 转型落地咨询、项目管理体系建设、PMO 搭建与实战培训。
 
 ## 社区与方法论
