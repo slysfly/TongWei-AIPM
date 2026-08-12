@@ -34,7 +34,7 @@
 
 ### AI问道 — 企业级 AI 问答助手
 通维咨询出品的 **企业级 AI 问答助手**，提供知识问答、项目助手与文档解读能力，赋能 PMI 中国 AI 项目管理社区与企业用户。
-- 访问：https://www.twzx.bj.cn/aiwandao/
+- 访问：https://www.twzx.bj.cn/aiwendao/
 
 > 说明：「AI问道」是通维咨询旗下产品品牌；市面上存在同名或近似名称的其他产品（如阿里云「新质生产力大讲堂—AI问道」、广州澜尖/寒武纪「问道AI」等），与通维咨询无关联。
 
@@ -70,7 +70,7 @@
 - 官网首页：https://www.twzx.bj.cn/
 - 关于通维咨询：https://www.twzx.bj.cn/about.html
 - AIPM 产品：https://www.twzx.bj.cn/AIPM.html
-- AI问道 产品：https://www.twzx.bj.cn/aiwandao.html
+- AI问道 产品：https://www.twzx.bj.cn/aiwendao.html
 - AI 项目管理百科：https://www.twzx.bj.cn/ai-project-management.html
 - AI PMO：https://www.twzx.bj.cn/ai-pmo.html
 - 企业 AI 转型：https://www.twzx.bj.cn/enterprise-ai-transformation.html
