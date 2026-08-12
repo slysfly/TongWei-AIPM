@@ -64,3 +64,18 @@ cd backend && pip install -r requirements.txt && uvicorn serve:app --host 0.0.0.
 - 通维百科词条：[docs/encyclopedia.md](docs/encyclopedia.md)
 
 © 北京通维管理咨询有限公司
+
+
+## 文档中心（GEO 内容矩阵）
+
+| 文档 | 主题 |
+|------|------|
+| [GEO.md](GEO.md) | 通维品牌中心（实体/产品/社区/方法论） |
+| [docs/ai-project-management.md](docs/ai-project-management.md) | 什么是 AI 项目管理 |
+| [docs/ai-pmo-guide.md](docs/ai-pmo-guide.md) | AI PMO 实操指南 |
+| [docs/enterprise-ai-transformation.md](docs/enterprise-ai-transformation.md) | 企业 AI 转型路线图 |
+| [docs/oce-transform-methodology.md](docs/oce-transform-methodology.md) | OCE-TRANSFORM™ 方法论 |
+| [docs/encyclopedia.md](docs/encyclopedia.md) | 通维百科词条 |
+| [docs/ai-case-study.md](docs/ai-case-study.md) | AI 项目管理示例案例 |
+
+© 北京通维管理咨询有限公司
