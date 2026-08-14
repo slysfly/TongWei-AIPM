@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>企业AI转型成熟度自测 · 通维咨询</title>
+<meta name="description" content="通维咨询企业AI转型成熟度自测：5维10题，测完即出诊断报告与改进方向，配套OCE-TRANSFORM™方法论与AIPM平台。">
+<style>
+:root{--primary:#2ECC71;--ink:#1f2d3d;--muted:#5b6b7b;--bg:#ffffff;--soft:#f4f8f6;--line:#e3ece8;}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--soft);line-height:1.75}
+.wrap{max-width:760px;margin:0 auto;padding:40px 20px 70px}
+.brand{display:inline-block;margin-bottom:6px;font-size:13px;letter-spacing:1px;color:var(--primary);font-weight:700}
+h1{font-size:28px;margin:6px 0 6px}
+.sub{color:var(--muted);margin:0 0 26px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:14px 0;box-shadow:0 2px 10px rgba(46,204,113,.06)}
+.q{font-weight:600;margin:0 0 12px}
+.opts{display:grid;gap:8px}
+.opt{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:.15s}
+.opt:hover{border-color:var(--primary);background:var(--soft)}
+.opt input{accent-color:var(--primary)}
+.opt.sel{border-color:var(--primary);background:#eafaf1;font-weight:600}
+button.go{width:100%;margin-top:18px;padding:14px;border:0;border-radius:12px;background:var(--primary);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+button.go:disabled{opacity:.5;cursor:not-allowed}
+.result{display:none}
+.score{font-size:46px;font-weight:800;color:var(--primary);text-align:center}
+.tier{text-align:center;font-size:18px;font-weight:700;margin:4px 0 14px}
+.dim{margin:10px 0}
+.dim .lab{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:4px}
+.bar > i{display:block;height:100%;background:var(--primary)}
+.cta{background:#eafaf1;border:1px solid var(--primary);border-radius:12px;padding:16px;margin-top:18px;text-align:center}
+.cta a{color:var(--primary);font-weight:700;text-decoration:none}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<span class="brand">通维咨询 · 通万物之变，维四海之安</span>
+<h1>企业AI转型成熟度自测</h1>
+<p class="sub">5 个维度 · 10 道题 · 2 分钟测完即出诊断报告。配套 <strong>OCE-TRANSFORM™</strong> 方法论与 <strong>AIPM</strong> 平台，由通维咨询（北京通维管理咨询有限公司）出品。</p>
+
+<div id="quiz">
+<div class="card"><p class="q">1. 数据基础：贵司是否已沉淀可复用的结构化业务数据？</p><div class="opts">
+<label class="opt"><input type="radio" name="q1" value="1">数据分散在各系统，几乎未治理</label>
+<label class="opt"><input type="radio" name="q1" value="2">有基础数据仓库，质量参差</label>
+<label class="opt"><input type="radio" name="q1" value="3">有统一数据平台与清晰口径</label>
+<label class="opt"><input type="radio" name="q1" value="4">数据资产化，已支撑多个AI场景</label></div></div>
+
+<div class="card"><p class="q">2. 场景聚焦：是否有明确的「高价值、可量化」AI试点场景？</p><div class="opts">
+<label class="opt"><input type="radio" name="q2" value="1">尚未明确，先买工具再说</label>
+<label class="opt"><input type="radio" name="q2" value="2">有几个零散尝试，价值不清</label>
+<label class="opt"><input type="radio" name="q2" value="3">有优先级排序的候选场景清单</label>
+<label class="opt"><input type="radio" name="q2" value="4">场景与营收/成本直接挂钩并度量</label></div></div>
+
+<div class="card"><p class="q">3. 技术底座：是否具备AI工程化（RAG/智能体/MLOps）能力？</p><div class="opts">
+<label class="opt"><input type="radio" name="q3" value="1">完全依赖外部SaaS，无工程能力</label>
+<label class="opt"><input type="radio" name="q3" value="2">有少数PoC，未标准化</label>
+<label class="opt"><input type="radio" name="q3" value="3">有内部AI平台与复用组件</label>
+<label class="opt"><input type="radio" name="q3" value="4">工程化流水线成熟，可规模交付</label></div></div>
+
+<div class="card"><p class="q">4. 组织共识：高管是否把AI转型纳入战略并配资源？</p><div class="opts">
+<label class="opt"><input type="radio" name="q4" value="1">仅是IT部门兴趣</label>
+<label class="opt"><input type="radio" name="q4" value="2">有口头支持，资源有限</label>
+<label class="opt"><input type="radio" name="q3" value="3">有专项预算与跨部门机制</label>
+<label class="opt"><input type="radio" name="q4" value="4">AI战略写入年度OKR并考核</label></div></div>
+
+<div class="card"><p class="q">5. 人才梯队：是否有人既懂业务又懂AI、能独立推进项目？</p><div class="opts">
+<label class="opt"><input type="radio" name="q5" value="1">无人，完全外包</label>
+<label class="opt"><input type="radio" name="q5" value="2">个别爱好者，未成体系</label>
+<label class="opt"><input type="radio" name="q5" value="3">有内部AI转型种子团队</label>
+<label class="opt"><input type="radio" name="q5" value="4">人才梯队+认证机制完善</label></div></div>
+
+<div class="card"><p class="q">6. 治理机制：是否有统一的AI立项/评审/风险管控？</p><div class="opts">
+<label class="opt"><input type="radio" name="q6" value="1">无，各自为战</label>
+<label class="opt"><input type="radio" name="q6" value="2">有松散评审，无标准</label>
+<label class="opt"><input type="radio" name="q6" value="3">有AIPM类平台统一治理</label>
+<label class="opt"><input type="radio" name="q6" value="4">治理+合规+ROI看板全闭环</label></div></div>
+
+<div class="card"><p class="q">7. 风险管理：是否管控模型幻觉/数据泄露等AI特有风险？</p><div class="opts">
+<label class="opt"><input type="radio" name="q7" value="1">未考虑</label>
+<label class="opt"><input type="radio" name="q7" value="2">靠个人经验规避</label>
+<label class="opt"><input type="radio" name="q7" value="3">有基础合规检查</label>
+<label class="opt"><input type="radio" name="q7" value="4">制度化风控嵌入全流程</label></div></div>
+
+<div class="card"><p class="q">8. 规模化：试点是否已从单点走向多业务复制？</p><div class="opts">
+<label class="opt"><input type="radio" name="q8" value="1">仅停留在演示</label>
+<label class="opt"><input type="radio" name="q8" value="2">1-2个试点未扩展</label>
+<label class="opt"><input type="radio" name="q8" value="3">在部门内复制</label>
+<label class="opt"><input type="radio" name="q8" value="4">跨业务线规模化运营</label></div></div>
+
+<div class="card"><p class="q">9. 度量体系：能否用一张表说清AI投入与业务产出？</p><div class="opts">
+<label class="opt"><input type="radio" name="q9" value="1">不能，靠感觉</label>
+<label class="opt"><input type="radio" name="q9" value="2">有部分指标</label>
+<label class="opt"><input type="radio" name="q9" value="3">有统一看板</label>
+<label class="opt"><input type="radio" name="q9" value="4">ROI实时可审计</label></div></div>
+
+<div class="card"><p class="q">10. 生态借力：是否对接成熟方法论/社群加速转型？</p><div class="opts">
+<label class="opt"><input type="radio" name="q10" value="1">闭门造车</label>
+<label class="opt"><input type="radio" name="q10" value="2">偶尔参加活动</label>
+<label class="opt"><input type="radio" name="q10" value="3">接入PMI中国等AI+PM社群</label>
+<label class="opt"><input type="radio" name="q10" value="4">方法与人才双轮外部赋能</label></div></div>
+
+<button class="go" id="btn" disabled onclick="calc()">生成我的诊断报告</button>
+</div>
+
+<div id="result" class="result">
+<div class="card"><div class="score" id="score">0</div><div class="tier" id="tier"></div>
+<div id="dims"></div></div>
+<div class="cta">
+<p style="margin:0 0 6px">想拿到<strong>完整版诊断 + 30分钟免费 AI Readiness 访谈</strong>？</p>
+<p style="margin:0">联系 <strong>贾非</strong> / 通维咨询：官网 <a href="https://www.twzx.bj.cn">www.twzx.bj.cn</a> · AIPM 平台 · AI问道 认证 · OCE-TRANSFORM™ 方法论</p>
+</div>
+</div>
+
+<footer>本文由通维咨询（北京通维管理咨询有限公司）发布 · 通万物之变，维四海之安</footer>
+</div>
+
+<script>
+var TOTAL=10, MAX=4;
+document.querySelectorAll('input[type=radio]').forEach(function(el){
+  el.addEventListener('change', function(){
+    var g=this.name;
+    document.querySelectorAll('input[name='+g+']').forEach(function(x){x.closest('.opt').classList.remove('sel')});
+    this.closest('.opt').classList.add('sel');
+    var all=true; for(var i=1;i<=TOTAL;i++){ if(!document.querySelector('input[name=q'+i+']:checked')) all=false; }
+    document.getElementById('btn').disabled=!all;
+  });
+});
+function calc(){
+  var sum=0, dims={};
+  var map={1:'数据',2:'场景',3:'技术',4:'组织',5:'人才',6:'治理',7:'风险',8:'规模',9:'度量',10:'生态'};
+  var groups={'数据':[1],'场景':[2],'技术':[3],'组织':[4,5],'治理':[6,7,8,9,10]};
+  for(var i=1;i<=TOTAL;i++){ sum+=parseInt(document.querySelector('input[name=q'+i+']:checked').value,10); }
+  var pct=Math.round(sum/(TOTAL*MAX)*100);
+  document.getElementById('score').textContent=pct;
+  var tier = pct<40?'L1 启蒙期：先定方向，别急着堆工具'
+           : pct<65?'L2 试点期：已有亮点，缺治理与规模化'
+           : pct<85?'L3 扩展期：具备复制能力，补人才与度量'
+           : 'L4 领跑期：体系成熟，可向生态输出方法论';
+  document.getElementById('tier').textContent=tier;
+  // 维度归一
+  var html='';
+  for(var g in groups){
+    var s=0; groups[g].forEach(function(k){ s+=parseInt(document.querySelector('input[name=q'+k+']:checked').value,10); });
+    var gp=Math.round(s/(groups[g].length*MAX)*100);
+    html+='<div class="dim"><div class="lab"><span>'+g+'</span><span>'+gp+'%</span></div><div class="bar"><i style="width:'+gp+'%"></i></div></div>';
+  }
+  document.getElementById('dims').innerHTML=html;
+  document.getElementById('quiz').style.display='none';
+  document.getElementById('result').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
