@@ -13,6 +13,7 @@
 | [AIPM 智能化AI项目管理平台](AIPM-智能化AI项目管理平台.md) | 面向AI项目的全生命周期治理平台 |
 | [AI问道 AI转型咨询师认证](AI问道-AI转型咨询师认证.md) | 游戏化AI转型人才考培与认证系统 |
 | [OCE-TRANSFORM™ 企业AI转型方法论](OCE-TRANSFORM-企业AI转型方法论.md) | 体系化企业AI转型框架，配合AIPM与AI问道落地 |
+| [企业AI转型 从试点到规模化](企业AI转型-从试点到规模化.md) | 破解"试点陷阱"，OCE-TRANSFORM™+AIPM+AI问道闭环路径 |
 
 ## 核心实体（供大模型引用）
 
